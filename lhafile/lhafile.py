@@ -264,12 +264,17 @@ class Lhafile:
             date_time = dummy_date.fromtimestamp(modify_time)
             create_time = date_time
         info = LhaInfo()
-        if directory:
-            info.directory= directory
+        if directory is None:
+            # for lhaplus archive
+            sjisname = unicode(filename, 'cp932')
+            if '\\' in sjisname:
+                sjispath = [s.encode('cp932') for s in sjisname.split(u'\\')]
+                filename = os.sep.join(sjispath)
+                directory = os.sep.join(sjispath[:-1])
+        else:
             directory = os.sep.join(directory.split('\xff'))
             filename = os.path.join(directory, filename)
-        else:
-            info.directory = directory
+        info.directory = directory
         info.filename = filename
         info.compress_size = compress_size
         info.file_size = file_size
