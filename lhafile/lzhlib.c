@@ -919,21 +919,21 @@ error:
 }
 
 static inline int
-decodeBitLengthDistance(bit_stream_reader *bs, string *blenlen15)
+decodeBitLengthDistance(bit_stream_reader *bs, string *blenlen_distance, int dispos_bit, int dis_bit)
 {
     int error_no = 0;
     int i, unary;
     int leafCode, tableSize;
-    
-    tableSize = bit_stream_reader_fetch(bs, 4);
+
+    tableSize = bit_stream_reader_fetch(bs, dis_bit);
     EOF_CHECK(tableSize);
-    
+
     if(tableSize == 0){
-        leafCode = bit_stream_reader_fetch(bs, 4);
+        leafCode = bit_stream_reader_fetch(bs, dis_bit);
         EOF_CHECK(leafCode);
-        
-        string_clear(blenlen15);
-        string_set(blenlen15, leafCode, 1);
+
+        string_clear(blenlen_distance);
+        string_set(blenlen_distance, leafCode, 1);
     }else{
         i = 0;
 
@@ -942,13 +942,13 @@ decodeBitLengthDistance(bit_stream_reader *bs, string *blenlen15)
             if(error_no != 0){
                 goto error;
             }
-            string_set(blenlen15, i, unary);
+            string_set(blenlen_distance, i, unary);
 
             i += 1;
         }
 
-        while(i < 15){
-            string_set(blenlen15, i, 0);
+        while(i <= dispos_bit){
+            string_set(blenlen_distance, i, 0);
             i += 1;
         }
     }
@@ -980,7 +980,7 @@ typedef struct {
     huffman_decoder *literal_decoder;
     huffman_decoder *distance_decoder;
 
-    string *bitlen15;
+    string *bitlen_distance;
     string *bitlen19;
     string *bitlen510;
 
@@ -992,15 +992,19 @@ typedef struct {
     int finish;
     int error_no;
 
+    int dic_bit;
+    int dispos_bit;
+    int dis_bit;
+
     /* buffer instances */
     bit_stream_reader _in;
     bit_stream_writer _out;
-    string _bitlen15;
+    string _bitlen_distance;
     string _bitlen19;
     string _bitlen510;
     huffman_decoder _literal_decoder;
     huffman_decoder _distance_decoder;
-    unsigned char _bitlen15_buf[15];
+    unsigned char _bitlen_distance_buf[18];
     unsigned char _bitlen19_buf[19];
     unsigned char _bitlen510_buf[510];
     unsigned char _dic_buf[65536];
@@ -1079,10 +1083,10 @@ LZHDecodeSession_do_next(LZHDecodeSessionObject *self)
                     if(error_no != 0){goto error;}
                     
                     /* Create distance decoder */
-                    error_no = decodeBitLengthDistance(self->in, self->bitlen15);
+                    error_no = decodeBitLengthDistance(self->in, self->bitlen_distance, self->dispos_bit, self->dis_bit);
                     if(error_no != 0){goto error;}
                     
-                    error_no = huffman_decoder_init(self->distance_decoder, self->bitlen15);
+                    error_no = huffman_decoder_init(self->distance_decoder, self->bitlen_distance);
                     if(error_no != 0){goto error;}
                     
                 }
@@ -1207,8 +1211,48 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
     PyObject *fin, *fout, *info, *value, *attr;
     int error_no;
 
+    /* Parse arguments */
+    if(!PyArg_ParseTuple(args, "OOO", &fin, &fout, &info)){
+        goto error;
+    }
+
+    /* compress_type */
+    attr = PyString_FromString("compress_type");
+    if(!attr){ goto error; }
+
+    value = PyObject_GetAttr(info, attr);
+
+    Py_DECREF(attr);
+    if(!value){ goto error; }
+
+    if(memcmp(PyString_AsString(value), "-lh0-\x00", 6) == 0){
+        self->compress_type = COMPRESS_TYPE_LH0;
+        self->dic_size = 0;
+    }else if(memcmp(PyString_AsString(value), "-lh5-\x00", 6) == 0){
+        self->compress_type = COMPRESS_TYPE_LH5;
+        self->dic_size = 8192;
+        self->dic_bit = 13;
+        self->dispos_bit = 14;
+        self->dis_bit = 4;
+    }else if(memcmp(PyString_AsString(value), "-lh6-\x00", 6) == 0){
+        self->compress_type = COMPRESS_TYPE_LH6;
+        self->dic_size = 32768;
+        self->dic_bit = 15;
+        self->dispos_bit = 16;
+        self->dis_bit = 5;
+    }else if(memcmp(PyString_AsString(value), "-lh7-\x00", 6) == 0){
+        self->compress_type = COMPRESS_TYPE_LH7;
+        self->dic_size = 65536;
+        self->dic_bit = 16;
+        self->dispos_bit = 17;
+        self->dis_bit = 5;
+    }else{
+        goto error;
+    }          
+    Py_DECREF(value);
+
     /* Initialize each buffer and decoder */
-    string_init(&self->_bitlen15, self->_bitlen15_buf, 15);
+    string_init(&self->_bitlen_distance, self->_bitlen_distance_buf, self->dispos_bit + 1);
     string_init(&self->_bitlen19, self->_bitlen19_buf, 19);
     string_init(&self->_bitlen510, self->_bitlen510_buf, 510);
 
@@ -1219,7 +1263,7 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
     self->in = &self->_in;
     self->out = &self->_out;
 
-    self->bitlen15 = &self->_bitlen15;
+    self->bitlen_distance = &self->_bitlen_distance;
     self->bitlen19 = &self->_bitlen19;
     self->bitlen510 = &self->_bitlen510;
 
@@ -1233,36 +1277,6 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
 
     self->blockSize = 0;
 
-    /* Parse arguments */
-    if(!PyArg_ParseTuple(args, "OOO", &fin, &fout, &info)){
-        goto error;
-    }
-
-    /* compress_type */
-    attr = PyString_FromString("compress_type");
-    if(!attr){ goto error; }
-
-    value = PyObject_GetAttr(info, attr);
-    Py_DECREF(attr);
-    if(!value){ goto error; }
-
-    if(memcmp(PyString_AsString(value), "-lh0-\x00", 6) == 0){
-        self->compress_type = COMPRESS_TYPE_LH0;
-        self->dic_size = 0;
-    }else if(memcmp(PyString_AsString(value), "-lh5-\x00", 6) == 0){
-        self->compress_type = COMPRESS_TYPE_LH5;
-        self->dic_size = 8192;
-    }else if(memcmp(PyString_AsString(value), "-lh6-\x00", 6) == 0){
-        self->compress_type = COMPRESS_TYPE_LH6;
-        self->dic_size = 32768;
-    }else if(memcmp(PyString_AsString(value), "-lh7-\x00", 6) == 0){
-        self->compress_type = COMPRESS_TYPE_LH7;
-        self->dic_size = 65536;
-    }else{
-        goto error;
-    }          
-    Py_DECREF(value);
-        
     self->info_compress_size = (Py_off_t)LhaInfo_GetAttr(info, "compress_size");
     self->info_file_size     = (Py_off_t)LhaInfo_GetAttr(info, "file_size");
     self->info_crc           = (int)LhaInfo_GetAttr(info, "CRC");

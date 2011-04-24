@@ -160,8 +160,7 @@ class Lhafile:
             info = self._RealGetContent()
             while info:
                 if not info.compress_type in Lhafile.SUPPORTED_COMPRESS_TYPE:
-                    print info.compress_type
-                    raise RuntimeError, "Unsupported file is contained"
+                    raise RuntimeError, "Unsupported file is contained %s" % (info.compress_type,)
                 if callback:
                     callback(args, self.fp.tell(), self.filesize, info)
                 self.filelist.append(info)
@@ -313,7 +312,7 @@ class Lhafile:
                     pass
                 outsize = session.output_pos
                 crc = session.crc16
-            except:
+            except Exception, e:
                 raise e
             if outsize != info.file_size:
                 raise BadLhafile, "%s output_size is not matched %d/%d %s" % \
