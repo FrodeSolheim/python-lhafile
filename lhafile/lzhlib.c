@@ -46,7 +46,7 @@ static char __author__[] =
 #define inline __inline
 #endif
 
-typedef off_t Py_off_t;
+typedef long long Py_off_t;
 
 #define FILE_BUFFER_SIZE (64*1024)
 

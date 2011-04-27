@@ -102,8 +102,8 @@ class TestSequenceFunctions(unittest.TestCase):
             datafiles.sort()
             for filename in datafiles:
                 try:
-                    filename = os.sep.join(filename.split('/'))                    
-                    data = lha.read(filename)
+                    norm_filename = os.sep.join(filename.split('/'))                    
+                    data = lha.read(norm_filename)
                 except Exception, e:
                     self.assert_(False, "Decode error happened in %s" % (filename,))
                 if data == self.datasets[filename]:
