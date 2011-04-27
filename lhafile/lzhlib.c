@@ -302,6 +302,7 @@ bit_stream_reader_init_fileio(bit_stream_reader *self, PyObject *file)
     self->cache = cache;
     if(buf == end){
         self->eof = 1;
+        self->cache <<= (8 * sizeof(unsigned int) - self->remain_bit);
     }else{
         self->remain_bit = 0;
         self->eof = 0;
