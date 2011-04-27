@@ -89,8 +89,10 @@ class TestSequenceFunctions(unittest.TestCase):
             lha = lhafile.Lhafile(lzhname)
             files = [info.filename for info in lha.infolist()]
             for filename in self.datasets.keys():
+                filename = os.sep.join(filename.split('/'))
                 self.assert_(filename in files)
                 del files[files.index(filename)]
+      
                 
     def testlhafile_read(self):
         for lzhname in self.lzhnames:
@@ -100,6 +102,7 @@ class TestSequenceFunctions(unittest.TestCase):
             datafiles.sort()
             for filename in datafiles:
                 try:
+                    filename = os.sep.join(filename.split('/'))                    
                     data = lha.read(filename)
                 except Exception, e:
                     self.assert_(False, "Decode error happened in %s" % (filename,))
