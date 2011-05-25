@@ -1274,7 +1274,6 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
 
     self->dic_buf = self->_dic_buf;
     self->dic_pos = 0;
-    self->dic_size = 0;
 
     self->blockSize = 0;
 
