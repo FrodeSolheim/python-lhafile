@@ -257,7 +257,10 @@ class Lhafile:
             hour = ord(modify_time[1]) >> 3
             minute = ((ord(modify_time[1]) << 8 | ord(modify_time[0])) >> 5) & 0x2F
             second = (ord(modify_time[0]) & 0x1F) * 2
-            date_time = datetime.datetime(year, month, day, hour, minute, second)
+            try:
+                date_time = datetime.datetime(year, month, day, hour, minute, second)
+            except Exception:
+                date_time = datetime.datetime(1970, 1, 1)
             create_time = date_time
         elif os_level in (2,):
             dummy_date = datetime.datetime(1970,1,1)
