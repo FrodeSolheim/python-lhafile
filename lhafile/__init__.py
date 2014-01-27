@@ -1,2 +1,2 @@
-# -*- coding: utf-8 -*-
-from lhafile import *
+from __future__ import absolute_import
+from .lhafile import *
