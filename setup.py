@@ -24,7 +24,7 @@ lzhlib = Extension('lzhlib',
 
 setup(name="lhafile",
       packages=['lhafile'],
-      version='0.1',
+      version='0.1.0fs3',
       description="LHA(.lzh) file extract interface",
       long_description="""Extract LHA(.lzh) file extension.
 Its interface is likely zipfile extension is included in regular
