@@ -1248,6 +1248,12 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
     PyObject *fin, *fout, *info, *value, *attr;
     int error_no;
 
+    /* Initialize these so we can test them in dealloc if init fails */
+    self->in = NULL;
+    self->out = NULL;
+    self->fin = NULL;
+    self->fout = NULL;
+
     /* Parse arguments */
     if(!PyArg_ParseTuple(args, "OOO", &fin, &fout, &info)){
         goto error;
@@ -1264,7 +1270,10 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
     value = PyObject_GetAttr(info, attr);
 
     Py_DECREF(attr);
-    if(!value){ goto error; }
+    if (!value) {
+         PyErr_SetString(PyExc_RuntimeError, "Could not read compress_type");
+         goto error;
+    }
 
 #ifdef IS_PY3K
     if(memcmp(PyBytes_AsString(value), "-lh0-\x00", 6) == 0){
@@ -1304,6 +1313,7 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
         self->dispos_bit = 17;
         self->dis_bit = 5;
     }else{
+        PyErr_SetString(PyExc_RuntimeError, "Unsupported compress type");
         goto error;
     }
     Py_DECREF(value);
@@ -1342,12 +1352,14 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
 
     error_no = bit_stream_reader_init_fileio(self->in, self->fin);
     if(error_no != 0){
+        PyErr_SetString(PyExc_RuntimeError, "bit_stream_reader_init_fileio");
         goto error;
     }
 
     error_no = bit_stream_writer_init_fileio(self->out, self->fout);
     if(error_no != 0){
         bit_stream_reader_close(self->in);
+        PyErr_SetString(PyExc_RuntimeError, "bit_stream_writer_init_fileio");
         goto error;
     }
 
@@ -1364,14 +1376,18 @@ error:
 static void
 LZHDecodeSession_dealloc(LZHDecodeSessionObject *self)
 {
-    /* If deocde is not finished */
+    /* If decode is not finished */
     if(!self->finish && self->error_no == 0){
-        bit_stream_reader_close(self->in);
-        bit_stream_writer_close(self->out);
+        if (self->in) {
+            bit_stream_reader_close(self->in);
+        }
+        if (self->out) {
+            bit_stream_writer_close(self->out);
+        }
     }
 
-    Py_DECREF(self->fin);
-    Py_DECREF(self->fout);
+    Py_XDECREF(self->fin);
+    Py_XDECREF(self->fout);
 
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
