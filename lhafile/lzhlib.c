@@ -1,4 +1,4 @@
-/* 
+/*
 lzhlib - lzh library modules for lhafile
 
 Copyright (c) 2010 Hidekazu Ohnishi.
@@ -36,7 +36,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "Python.h"
 #include "structmember.h"
 
-static char __author__[] = 
+#if PY_MAJOR_VERSION >= 3
+#define IS_PY3K
+#endif
+
+static char __author__[] =
 "The lzhlib python module was written by:\n\
 \n\
     Hidekazu Ohnishi\n\
@@ -59,7 +63,7 @@ typedef enum {
     COMPRESS_TYPE_LH6,
     COMPRESS_TYPE_LH7,
 } lzhlib_compress_type;
-    
+
 typedef enum {
     ERR_UNEXPECT_EOF = 1,
     ERR_OUT_OF_RANGE,
@@ -85,7 +89,7 @@ const char *lzhlib_error_msg[] = {
     "Can't write file",
     "Buffer overflow will happened",
 };
- 
+
 typedef enum {
     BIT_STREAM_ERR_OVERFLOW = 0x01,
     BIT_STREAM_ERR_IOERROR = 0x02,
@@ -146,7 +150,7 @@ typedef struct{
 /* ===================================================================== */
 /* crc16 */
 
-const static int _crc16Table[256] = 
+const static int _crc16Table[256] =
 {
     0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
     0xC601, 0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440,
@@ -182,10 +186,10 @@ const static int _crc16Table[256] =
     0x8201, 0x42C0, 0x4380, 0x8341, 0x4100, 0x81C1, 0x8081, 0x4040,
 };
 
-static inline int 
+static inline int
 crc16(unsigned char *data, int len, int crc){
     for(; len > 0 ; data++, len--){
-	crc = (crc >> 8) ^ _crc16Table[(crc ^ *data) & 0xFF];
+    crc = (crc >> 8) ^ _crc16Table[(crc ^ *data) & 0xFF];
     }
 
     return crc;
@@ -196,14 +200,14 @@ crc16(unsigned char *data, int len, int crc){
 
 /* STRING OPERATIONS */
 
-static inline void 
+static inline void
 string_init(string *self, unsigned char*s, int len)
 {
     self->s = s;
     self->len = len;
 }
 
-static inline int 
+static inline int
 string_len(string *self){
     return self->len;
 }
@@ -213,12 +217,12 @@ string_str(string *self){
     return self->s;
 }
 
-static inline int 
+static inline int
 string_get(string *self, int i){
     return (int)(self->s[i]);
 }
 
-static inline void 
+static inline void
 string_set(string *self, int i, int c){
     self->s[i] = (unsigned char)c;
 }
@@ -235,12 +239,12 @@ static inline string*
 new_string(int len){
     string *s;
     unsigned char *str;
-    
+
     str = PyMem_Malloc(len * sizeof(unsigned char));
     if(str == NULL){
         return NULL;
     }
-    
+
     s = PyMem_Malloc(sizeof(string));
     if(s == NULL){
         PyMem_Free(str);
@@ -286,8 +290,13 @@ bit_stream_reader_init_fileio(bit_stream_reader *self, PyObject *file)
     self->bit = 0;
     self->pos = 0;
 
+#ifdef IS_PY3K
+    buf = (unsigned char*)PyBytes_AsString(read_obj);
+    end = buf + PyBytes_Size(read_obj);
+#else
     buf = (unsigned char*)PyString_AsString(read_obj);
     end = buf + PyString_Size(read_obj);
+#endif
 
     /* Fill Cache */
     cache = 0;
@@ -296,7 +305,7 @@ bit_stream_reader_init_fileio(bit_stream_reader *self, PyObject *file)
         cache = (cache << 8) | *buf++;
         self->remain_bit += 8;
     }
-    
+
     self->buf = buf;
     self->end = end;
     self->cache = cache;
@@ -317,26 +326,26 @@ error:
 }
 
 
-static inline void 
+static inline void
 bit_stream_reader_close(bit_stream_reader *self)
 {
     Py_XDECREF(self->read_buf);
     self->read_buf = NULL;
 }
 
-static inline Py_off_t 
+static inline Py_off_t
 bit_stream_reader_pos(bit_stream_reader *self)
 {
     return self->pos;
 }
 
-static inline int 
+static inline int
 bit_stream_reader_pre_fetch(bit_stream_reader *self, int n)
 {
     return (int)(self->cache >> (8 * sizeof(int) - n));
 }
 
-static inline int 
+static inline int
 bit_stream_reader_fetch(bit_stream_reader *self, int n)
 {
     int ret;
@@ -364,22 +373,27 @@ bit_stream_reader_fetch(bit_stream_reader *self, int n)
             if(self->buf == self->end){
                 PyGILState_STATE state;
                 PyObject *read_obj = NULL;
-                
+
                 state = PyGILState_Ensure();
-                
+
                 /* free old buffer */
                 Py_DECREF(self->read_buf);
                 self->read_buf = NULL;
-                
+
                 /* read ahead data*/
                 read_obj = PyObject_CallMethod(self->fp, "read", "(i)", FILE_BUFFER_SIZE);
                 if(!read_obj){
                     ret = ERR_VALUE_ERROR;
                     goto error;
                 }
-                
+
+#ifdef IS_PY3K
+                self->buf = (unsigned char*)PyBytes_AsString(read_obj);
+                self->end = self->buf + PyBytes_Size(read_obj);
+#else
                 self->buf = (unsigned char*)PyString_AsString(read_obj);
                 self->end = self->buf + PyString_Size(read_obj);
+#endif
 
                 if(self->buf != self->end){
                     self->read_buf = read_obj;
@@ -392,8 +406,8 @@ bit_stream_reader_fetch(bit_stream_reader *self, int n)
                     break;
                 }
 
-                PyGILState_Release(state);                
-                
+                PyGILState_Release(state);
+
             }
             self->cache <<= 8;
             self->cache |= *self->buf++;
@@ -430,7 +444,11 @@ bit_stream_writer_init_fileio(bit_stream_writer *self, PyObject *file)
     if(!file){ error_no = ERR_VALUE_ERROR; goto error;}
 
     /* Allocate write buffer */
+#ifdef IS_PY3K
+    write_obj = PyBytes_FromStringAndSize(NULL, 65556);
+#else
     write_obj = PyString_FromStringAndSize(NULL, 65556);
+#endif
     if(!write_obj){ error_no = ERR_OUT_OF_MEMORY; goto error;}
 
     self->fp = file;
@@ -438,8 +456,13 @@ bit_stream_writer_init_fileio(bit_stream_writer *self, PyObject *file)
     self->crc16 = 0;
     self->pos = 0;
 
+#ifdef IS_PY3K
+    buf = (unsigned char*)PyBytes_AsString(write_obj);
+    end = buf + PyBytes_Size(write_obj);
+#else
     buf = (unsigned char*)PyString_AsString(write_obj);
     end = buf + PyString_Size(write_obj);
+#endif
 
     self->start = buf;
     self->buf = buf;
@@ -464,12 +487,16 @@ bit_stream_writer_flush(bit_stream_writer *self)
 
     if(self->write_buf){
       s = (int)(self->buf - self->start);
-        
+
         if(s > 0){
             self->crc16 = crc16(self->start, s, self->crc16);
+#ifdef IS_PY3K
+            write_obj = PyBytes_FromStringAndSize(PyBytes_AsString(self->write_buf), s);
+#else
             write_obj = PyString_FromStringAndSize(PyString_AsString(self->write_buf), s);
+#endif
             if(!write_obj){ error_no = ERR_OUT_OF_MEMORY; goto error; }
-        
+
             ret = PyObject_CallMethod(self->fp, "write", "(O)", write_obj);
 
             Py_DECREF(write_obj);
@@ -485,9 +512,9 @@ bit_stream_writer_flush(bit_stream_writer *self)
 
         self->buf = self->start;
     }
-    
+
 error:
-    
+
     return error_no;
 }
 
@@ -495,7 +522,7 @@ static inline int
 bit_stream_writer_close(bit_stream_writer *self)
 {
     int error_no = 0;
-    
+
     error_no = bit_stream_writer_flush(self);
 
     Py_XDECREF(self->write_buf);
@@ -517,7 +544,7 @@ bit_stream_writer_ioerror(bit_stream_writer *self)
     return ((self->error & BIT_STREAM_ERR_IOERROR) != 0);
 }
 
-static inline Py_off_t 
+static inline Py_off_t
 bit_stream_writer_pos(bit_stream_writer *self)
 {
     return self->pos;
@@ -534,31 +561,31 @@ bit_stream_writer_write(bit_stream_writer *self, int c)
 {
     self->pos++;
     *self->buf++ = (unsigned char)c;
-    
+
     if(self->buf == self->end){
         int s;
-            
+
         s = (int)(self->buf - self->start);
         self->crc16 = crc16(self->start, s, self->crc16);
-        
+
         {
             PyObject *ret;
             PyGILState_STATE state;
-            
+
             state = PyGILState_Ensure();
-            
+
             ret = PyObject_CallMethod(self->fp, "write", "(O)", self->write_buf);
             Py_DECREF(ret);
-            
+
             ret = PyErr_Occurred();
             if(ret){
                 self->error |= BIT_STREAM_ERR_OVERFLOW;
                 PyErr_Clear();
             }
-            
+
             PyGILState_Release(state);
         }
-        
+
         self->buf = self->start;
     }
 }
@@ -566,20 +593,20 @@ bit_stream_writer_write(bit_stream_writer *self, int c)
 
 /* BIT LENGTH TABLE OPERATIONS */
 
-static inline int 
+static inline int
 bit_length_table_init(bit_length_table *self, string *s)
 {
     int error_no = 0;
     int bitMax = 0;
     int blen, i;
-    
+
     for(i = 0; i < string_len(s); i++){
         blen = string_get(s, i);
         if(bitMax < blen){
             bitMax = blen;
         }
-    } 
-   
+    }
+
     if( bitMax == 0 || bitMax > 16 || string_len(s) == 0){
         error_no = ERR_BIT_LENGTH_TABLE_ERROR;
         goto error;
@@ -587,22 +614,22 @@ bit_length_table_init(bit_length_table *self, string *s)
 
     self->table = s;
     self->bitMax = bitMax;
-    
+
 error:
     return error_no;
 }
 
-static inline string* 
+static inline string*
 bit_length_table_table(bit_length_table *self){
     return self->table;
 }
 
-static inline int 
+static inline int
 bit_length_table_bitMax(bit_length_table *self){
     return self->bitMax;
 }
 
-static inline int 
+static inline int
 bit_length_table_table_num(bit_length_table *self, int i){
     return string_get(self->table, i);
 }
@@ -610,7 +637,7 @@ bit_length_table_table_num(bit_length_table *self, int i){
 
 /* BIT PATTERN TABLE OPERATIONS */
 
-static inline int 
+static inline int
 bit_pattern_table_init(bit_pattern_table *self, bit_length_table *blt)
 {
     int error_no = 0;
@@ -621,37 +648,37 @@ bit_pattern_table_init(bit_pattern_table *self, bit_length_table *blt)
     int *freqTable = self->_freqTable;
     int *weight = self->_weight;
     int *startPattern = self->_startPattern;
-    
+
     bitMax = bit_length_table_bitMax(blt);
     tableMax = string_len(bit_length_table_table(blt));
-	
+
     memset(freqTable,    0, sizeof(int) * (bitMax + 1));
     memset(weight,       0, sizeof(int) * (bitMax + 1));
     memset(startPattern, 0, sizeof(int) * (bitMax + 1));
-    
+
     for(i = 0; i < string_len(bit_length_table_table(blt)); i++){
         bl = bit_length_table_table_num(blt, i);
         if(bl == 0){
             continue;
         }
         freqTable[bl] += 1;
-    }		
-    
+    }
+
     ptn = 0;
     w = 1 << (bitMax - 1);
     for(i = 1; i <= bitMax ; i++){
         startPattern[i] = ptn;
         weight[i] = w;
-	
+
         ptn += (w * freqTable[i]);
         w >>= 1;
     }
-    
+
     if(ptn > (1 << bitMax)){
         error_no = ERR_BIT_PATTERN_TABLE_ERROR;
         goto error;
     }
-    
+
     /* Make bit pattern table */
     for(i = 0 ; i < tableMax ; i++){
         bl = bit_length_table_table_num(blt, i);
@@ -659,19 +686,19 @@ bit_pattern_table_init(bit_pattern_table *self, bit_length_table *blt)
             table[i] = 0;
             continue;
         }
-	
+
         ptn = startPattern[bl];
         table[i] = ptn >> (bitMax - bl);
         startPattern[bl] += weight[bl];
     }
-    
+
     self->len = tableMax;
-    
+
 error:
     return error_no;
 }
 
-static inline int 
+static inline int
 bit_pattern_table_table_num(bit_pattern_table *self, int i){
     return self->table[i];
 }
@@ -679,28 +706,28 @@ bit_pattern_table_table_num(bit_pattern_table *self, int i){
 
 /* HUFFMAN DECODER OPERATIONS */
 
-static int 
+static int
 huffman_decoder_init(huffman_decoder *self, string *s)
 {
     int error_no = 0;
-    int i; 
+    int i;
     int bitMax;
     int ptn, blen;
     unsigned short *blen_code = self->blen_code;
 
     bit_length_table *blt = &self->_blt;
-    bit_pattern_table *bpt = &self->_bpt;	
-    
-    error_no = bit_length_table_init(blt, s); 
+    bit_pattern_table *bpt = &self->_bpt;
+
+    error_no = bit_length_table_init(blt, s);
     if(error_no != 0){
         goto error;
     }
-    
+
     error_no = bit_pattern_table_init(bpt, blt);
     if(error_no != 0){
         goto error;
     }
-    
+
     bitMax = bit_length_table_bitMax(blt);
 
     memset(blen_code, 0, (sizeof(unsigned short) * (1 << (int)bitMax)));
@@ -710,19 +737,19 @@ huffman_decoder_init(huffman_decoder *self, string *s)
         if(blen == 0){
             continue;
         }
-	
+
         ptn = bit_pattern_table_table_num(bpt, i) << (bitMax - blen);
-	
+
         blen_code[ptn] = (blen << 11) | i;
 
     }
-    
+
     if(bitMax == 1){
         if(blen_code[1] == 0){
             blen_code[0] &= 0x1FF;
         }
     }
-    
+
     blen = *blen_code++;
     for(i = 1; i < (1 << bitMax) ; i++, blen_code++){
         if(*blen_code == 0){
@@ -731,14 +758,14 @@ huffman_decoder_init(huffman_decoder *self, string *s)
             blen = *blen_code;
         }
     }
-    
+
     self->bitMax = bitMax;
-    
+
 error:
     return error_no;
 }
 
-static inline int 
+static inline int
 huffman_decoder_decode(huffman_decoder *self, bit_stream_reader *bs)
 {
     int bits, blen, code;
@@ -763,7 +790,7 @@ del_huffman_decoder(huffman_decoder *d){
     }
 }
 
-/* LZH DECODE OPERATIONS */ 
+/* LZH DECODE OPERATIONS */
 
 #define EOF_CHECK(c)                                                    \
     if(c < 0){                                                          \
@@ -777,24 +804,24 @@ del_huffman_decoder(huffman_decoder *d){
     }
 
 
-static inline int 
+static inline int
 decodeUnary7(bit_stream_reader *bs, int *unary_code)
 {
     int error_no = 0;
     int c, code;
-    
+
     code = bit_stream_reader_fetch(bs, 3);
     EOF_CHECK(code);
-    
+
     if(code == 7){
         while((c = bit_stream_reader_fetch(bs, 1)) == 1){
             code += 1;
         }
         EOF_CHECK(c);
     }
-    
+
     *unary_code = code;
-    
+
 error:
     return error_no;
 }
@@ -807,14 +834,14 @@ decodeBitLengthDecoder(bit_stream_reader *bs, string *blenlen19)
     int i, c;
     int blenSize, blenLeafCode, nmax;
 
-    
+
     blenSize = bit_stream_reader_fetch(bs, 5);
     EOF_CHECK(blenSize);
     if(blenSize > 19){
         error_no = ERR_BIT_LENGTH_SIZE_ERROR;
         goto error;
     }
-    
+
     if(blenSize == 0){
         blenLeafCode = bit_stream_reader_fetch(bs, 5);
         EOF_CHECK(blenLeafCode);
@@ -826,21 +853,21 @@ decodeBitLengthDecoder(bit_stream_reader *bs, string *blenlen19)
         string_set(blenlen19, blenLeafCode, 1);
     }else{
         i = 0;
-        
+
         while(i < blenSize){
             error_no = decodeUnary7(bs, &c);
-	    
+
             if(error_no != 0){
                 goto error;
             }
-            
+
             string_set(blenlen19, i, c);
             i += 1;
-            
+
             if(i == 3){
                 nmax = bit_stream_reader_fetch(bs, 2);
                 EOF_CHECK(nmax);
-                
+
                 while(nmax > 0){
                     string_set(blenlen19, i, 0);
                     i += 1;
@@ -848,16 +875,16 @@ decodeBitLengthDecoder(bit_stream_reader *bs, string *blenlen19)
                 }
             }
         }
-        
+
         while(i < 19){
             string_set(blenlen19, i, 0);
             i += 1;
         }
     }
-            
+
 error:
     return error_no;
-    
+
 }
 
 static int
@@ -868,7 +895,7 @@ decodeBitLengthLiteral(bit_stream_reader *bs, string *blenlen510, huffman_decode
 
     n = bit_stream_reader_fetch(bs, 9);
     EOF_CHECK(n);
-    
+
     if(n == 0){
         leafCode = bit_stream_reader_fetch(bs, 9);
         EOF_CHECK(leafCode);
@@ -880,7 +907,7 @@ decodeBitLengthLiteral(bit_stream_reader *bs, string *blenlen510, huffman_decode
 
         while(i < n){
             code = huffman_decoder_decode(bitlen_decoder, bs);
-            
+
             if(code > 2){
                 string_set(blenlen510, i, code - 2);
                 i += 1;
@@ -908,13 +935,13 @@ decodeBitLengthLiteral(bit_stream_reader *bs, string *blenlen510, huffman_decode
                 i += 1;
             }
         }
-        
+
         while(i < 510){
             string_set(blenlen510, i, 0);
             i += 1;
         }
     }
-    
+
 error:
     return error_no;
 }
@@ -968,11 +995,11 @@ typedef struct {
     /* */
     PyObject *fin;
     PyObject *fout;
-    lzhlib_compress_type compress_type;    
+    lzhlib_compress_type compress_type;
     Py_off_t info_compress_size;
     Py_off_t info_file_size;
     int      info_crc;
-    
+
 
     bit_stream_reader *in;
     bit_stream_writer *out;
@@ -1056,15 +1083,15 @@ LZHDecodeSession_do_next(LZHDecodeSessionObject *self)
                     error_no = ERR_BUFFER_OVER_FLOW;
                     break;
                 }
-                
+
                 if(bit_stream_writer_ioerror(self->out) != 0){
                     error_no = ERR_IO_ERROR;
                     break;
                 }
-                
+
                 /* Read blockSize */
                 self->blockSize = bit_stream_reader_fetch(self->in, 16);
-                
+
                 if(self->blockSize == -1){
                     self->finish = 1;
                     break;
@@ -1072,42 +1099,42 @@ LZHDecodeSession_do_next(LZHDecodeSessionObject *self)
                     /* Create bitlen_decoder for literal_decoder */
                     error_no = decodeBitLengthDecoder(self->in, self->bitlen19);
                     if(error_no != 0){goto error;}
-                    
+
                     error_no = huffman_decoder_init(self->bitlen_decoder, self->bitlen19);
                     if(error_no != 0){goto error;}
-                    
+
                     /* Create literal decoder */
                     error_no = decodeBitLengthLiteral(self->in, self->bitlen510, self->bitlen_decoder);
                     if(error_no != 0){goto error;}
-                    
+
                     error_no = huffman_decoder_init(self->literal_decoder, self->bitlen510);
                     if(error_no != 0){goto error;}
-                    
+
                     /* Create distance decoder */
                     error_no = decodeBitLengthDistance(self->in, self->bitlen_distance, self->dispos_bit, self->dis_bit);
                     if(error_no != 0){goto error;}
-                    
+
                     error_no = huffman_decoder_init(self->distance_decoder, self->bitlen_distance);
                     if(error_no != 0){goto error;}
-                    
+
                 }
             }
-            
+
             code = huffman_decoder_decode(self->literal_decoder, self->in);
             self->blockSize -= 1;
-            
+
             if(code < 256){
                 self->dic_buf[self->dic_pos++] = code;
                 bit_stream_writer_write(self->out, code);
                 loop -=1;
-                
+
                 self->dic_pos &= (self->dic_size -1);
                 continue;
             }
-            
+
             mlen = code - 256 + 3;
             bitl = huffman_decoder_decode(self->distance_decoder, self->in);
-            
+
             if(bitl == 0){
                 dist = 1;
             }else{
@@ -1116,17 +1143,17 @@ LZHDecodeSession_do_next(LZHDecodeSessionObject *self)
                 dist += (1 << (bitl - 1));
                 dist += 1;
             }
-            
+
             srcpos = self->dic_pos - dist;
             if(srcpos < 0){
                 srcpos += self->dic_size;
-            } 
-            
+            }
+
             for(; mlen > 0 ; mlen--){
                 code = self->dic_buf[self->dic_pos++] = self->dic_buf[srcpos++];
                 bit_stream_writer_write(self->out, code);
                 loop -= 1;
-                
+
                 self->dic_pos &= (self->dic_size -1);
                 srcpos &= (self->dic_size -1);
             }
@@ -1142,7 +1169,7 @@ error:
         bit_stream_writer_close(self->out);
         goto exception;
     }
-    
+
     if(self->finish){
         bit_stream_reader_close(self->in);
         error_no = bit_stream_writer_close(self->out);
@@ -1169,11 +1196,11 @@ static PyMethodDef LZHDecodeSession_methods[] = {
 };
 
 static PyMemberDef LZHDecodeSession_members[] = {
-    {"input_file_size",  T_LONGLONG, offsetof(LZHDecodeSessionObject, info_compress_size), RO},
-    {"input_pos",        T_LONGLONG, offsetof(LZHDecodeSessionObject, _in) + offsetof(bit_stream_reader, pos), RO},
-    {"output_file_size", T_LONGLONG, offsetof(LZHDecodeSessionObject, info_file_size), RO},
-    {"output_pos",       T_LONGLONG, offsetof(LZHDecodeSessionObject, _out) + offsetof(bit_stream_writer, pos), RO},
-    {"crc16",            T_LONG,     offsetof(LZHDecodeSessionObject, _out) + offsetof(bit_stream_writer, crc16), RO},    
+    {"input_file_size",  T_LONGLONG, offsetof(LZHDecodeSessionObject, info_compress_size), READONLY},
+    {"input_pos",        T_LONGLONG, offsetof(LZHDecodeSessionObject, _in) + offsetof(bit_stream_reader, pos), READONLY},
+    {"output_file_size", T_LONGLONG, offsetof(LZHDecodeSessionObject, info_file_size), READONLY},
+    {"output_pos",       T_LONGLONG, offsetof(LZHDecodeSessionObject, _out) + offsetof(bit_stream_writer, pos), READONLY},
+    {"crc16",            T_LONG,     offsetof(LZHDecodeSessionObject, _out) + offsetof(bit_stream_writer, crc16), READONLY},
     {NULL}
 };
 
@@ -1183,17 +1210,26 @@ LhaInfo_GetAttr(PyObject *info, const char *attr_name){
     PyObject *attr, *value;
     long long num;
 
+#ifdef IS_PY3K
+    attr = PyUnicode_FromString(attr_name);
+#else
     attr = PyString_FromString(attr_name);
+#endif
     if(!attr){ goto error; }
 
     value = PyObject_GetAttr(info, attr);
     Py_DECREF(attr);
     if(!value){ goto error; }
 
+#ifdef IS_PY3K
+    if(PyLong_Check(value)){
+        num = (Py_off_t)PyLong_AsLongLong(value);
+#else
     if(PyInt_Check(value)){
         num = (Py_off_t)PyInt_AsLong(value);
     }else if(PyLong_Check(value)){
         num = (Py_off_t)PyLong_AsLongLong(value);
+#endif
     }else{
         Py_DECREF(value);
         goto error;
@@ -1218,7 +1254,11 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
     }
 
     /* compress_type */
+#ifdef IS_PY3K
+    attr = PyUnicode_FromString("compress_type");
+#else
     attr = PyString_FromString("compress_type");
+#endif
     if(!attr){ goto error; }
 
     value = PyObject_GetAttr(info, attr);
@@ -1226,22 +1266,38 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
     Py_DECREF(attr);
     if(!value){ goto error; }
 
+#ifdef IS_PY3K
+    if(memcmp(PyBytes_AsString(value), "-lh0-\x00", 6) == 0){
+#else
     if(memcmp(PyString_AsString(value), "-lh0-\x00", 6) == 0){
+#endif
         self->compress_type = COMPRESS_TYPE_LH0;
         self->dic_size = 0;
+#ifdef IS_PY3K
+    }else if(memcmp(PyBytes_AsString(value), "-lh5-\x00", 6) == 0){
+#else
     }else if(memcmp(PyString_AsString(value), "-lh5-\x00", 6) == 0){
+#endif
         self->compress_type = COMPRESS_TYPE_LH5;
         self->dic_size = 8192;
         self->dic_bit = 13;
         self->dispos_bit = 14;
         self->dis_bit = 4;
-    }else if(memcmp(PyString_AsString(value), "-lh6-\x00", 6) == 0){
+#ifdef IS_PY3K
+    }else if(memcmp(PyBytes_AsString(value), "-lh6-\x00", 6) == 0){
+#else
+    }else if(memcmp(PyBytes_AsString(value), "-lh6-\x00", 6) == 0){
+#endif
         self->compress_type = COMPRESS_TYPE_LH6;
         self->dic_size = 32768;
         self->dic_bit = 15;
         self->dispos_bit = 16;
         self->dis_bit = 5;
+#ifdef IS_PY3K
+    }else if(memcmp(PyBytes_AsString(value), "-lh7-\x00", 6) == 0){
+#else
     }else if(memcmp(PyString_AsString(value), "-lh7-\x00", 6) == 0){
+#endif
         self->compress_type = COMPRESS_TYPE_LH7;
         self->dic_size = 65536;
         self->dic_bit = 16;
@@ -1249,7 +1305,7 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
         self->dis_bit = 5;
     }else{
         goto error;
-    }          
+    }
     Py_DECREF(value);
 
     /* Initialize each buffer and decoder */
@@ -1284,7 +1340,7 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
     self->fin = fin;
     self->fout = fout;
 
-    error_no = bit_stream_reader_init_fileio(self->in, self->fin);   
+    error_no = bit_stream_reader_init_fileio(self->in, self->fin);
     if(error_no != 0){
         goto error;
     }
@@ -1294,7 +1350,7 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
         bit_stream_reader_close(self->in);
         goto error;
     }
-    
+
     Py_INCREF(self->fin);
     Py_INCREF(self->fout);
 
@@ -1302,7 +1358,7 @@ LZHDecodeSession_init(LZHDecodeSessionObject *self, PyObject *args, PyObject *kw
 
 error:
     return -1;
-}    
+}
 
 
 static void
@@ -1316,27 +1372,26 @@ LZHDecodeSession_dealloc(LZHDecodeSessionObject *self)
 
     Py_DECREF(self->fin);
     Py_DECREF(self->fout);
-   
-    self->ob_type->tp_free((PyObject *)self);
+
+    Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 
 static PyTypeObject LZHDecodeSession_Type = {
-    PyObject_HEAD_INIT(NULL)
-    0,			                    /*ob_size*/
+    PyVarObject_HEAD_INIT(NULL, 0)
     "lhafile.LZHDecodeSession",             /*tp_name*/
-    sizeof(LZHDecodeSessionObject),	    /*tp_basicsize*/
-    0,			                    /*tp_itemsize*/
+    sizeof(LZHDecodeSessionObject),     /*tp_basicsize*/
+    0,                              /*tp_itemsize*/
     (destructor)LZHDecodeSession_dealloc,   /*tp_dealloc*/
-    0,	                                    /*tp_print*/
-    0,	                                    /*tp_getattr*/
-    0,	                                    /*tp_setattr*/
-    0,	                                    /*tp_compare*/
-    0,	                                    /*tp_repr*/
-    0,	                                    /*tp_as_number*/
-    0,	                                    /*tp_as_sequence*/
-    0,	                                    /*tp_as_mapping*/
-    0,	                                    /*tp_hash*/
+    0,                                      /*tp_print*/
+    0,                                      /*tp_getattr*/
+    0,                                      /*tp_setattr*/
+    0,                                      /*tp_compare*/
+    0,                                      /*tp_repr*/
+    0,                                      /*tp_as_number*/
+    0,                                      /*tp_as_sequence*/
+    0,                                      /*tp_as_mapping*/
+    0,                                      /*tp_hash*/
     0,                                      /*tp_call*/
     0,                                      /*tp_str*/
     PyObject_GenericGetAttr,                /*tp_getattro*/
@@ -1361,7 +1416,7 @@ static PyTypeObject LZHDecodeSession_Type = {
     (initproc)LZHDecodeSession_init,        /*tp_init*/
     PyType_GenericAlloc,                    /*tp_alloc*/
     PyType_GenericNew,                      /*tp_new*/
-    _PyObject_Del,                          /*tp_free*/
+    PyObject_Del,                           /*tp_free*/
     0,                                      /*tp_is_gc*/
 };
 
@@ -1370,13 +1425,13 @@ static PyTypeObject LZHDecodeSession_Type = {
  *
  */
 
-static PyObject* 
+static PyObject*
 lzhlib_crc16(PyObject* self, PyObject* args)
 {
     unsigned char *data;
     int len;
     int crc;
-    
+
     crc = 0;
     if(!PyArg_ParseTuple(args, "s#|i", &data, &len, &crc)){
         return NULL;
@@ -1384,7 +1439,7 @@ lzhlib_crc16(PyObject* self, PyObject* args)
 
     crc = crc16(data, len, crc);
 
-    return Py_BuildValue("i", (int)crc); 
+    return Py_BuildValue("i", (int)crc);
 }
 
 static PyMethodDef lzhlib_methods[] = {
@@ -1393,19 +1448,57 @@ static PyMethodDef lzhlib_methods[] = {
     { NULL, NULL, 0, NULL}
 };
 
+#if PY_MAJOR_VERSION >= 3
+    static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "lzhlib",                  /* m_name */
+        "c extension for lhafile", /* m_doc */
+        -1,                        /* m_size */
+        lzhlib_methods,            /* m_methods */
+        NULL,                      /* m_reload */
+        NULL,                      /* m_traverse */
+        NULL,                      /* m_clear */
+        NULL,                      /* m_free */
+    };
+#endif
+
 PyMODINIT_FUNC
+#ifdef IS_PY3K
+PyInit_lzhlib(void)
+#else
 initlzhlib(void)
+#endif
 {
     PyObject *m;
-    
+
+#ifdef IS_PY3K
+    PyType_Ready(&LZHDecodeSession_Type);
+#else
     LZHDecodeSession_Type.ob_type = &PyType_Type;
+#endif
 
+#ifdef IS_PY3K
+    m = PyModule_Create(&moduledef);
+#else
     m = Py_InitModule("lzhlib", lzhlib_methods);
+#endif
     if (m == NULL)
+#ifdef IS_PY3K
+        return NULL;
+#else
         return;
+#endif
 
+#ifdef IS_PY3K
+    PyModule_AddObject(m, "__author__", PyUnicode_FromString(__author__));
+#else
     PyModule_AddObject(m, "__author__", PyString_FromString(__author__));
+#endif
 
     Py_INCREF(&LZHDecodeSession_Type);
     PyModule_AddObject(m, "LZHDecodeSession", (PyObject *)&LZHDecodeSession_Type);
+
+#ifdef IS_PY3K
+    return m;
+#endif
 }

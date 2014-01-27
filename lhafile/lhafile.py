@@ -31,26 +31,44 @@
 
 Its interface is likey zipfile module is include in regular python environment.
 """
-
-import cStringIO
+from __future__ import unicode_literals
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import BytesIO as BytesOrStringIO
 import datetime
 import os
 import os.path
 import struct
 import sys
-
+import six
 import lzhlib
+
+
 crc16 = lzhlib.crc16
+
+
+if six.PY3:
+
+    def ord(v):
+        return v
+
+
+def unpack(format, data):
+    return struct.unpack(str(format), data)
+
 
 def is_lhafile(filename):
     try:
-        Lhafile(filename)
+        LhaFile(filename)
     except:
         return False
     return True
 
+
 class BadLhafile(Exception):
     pass
+
 
 class LhaInfo(object):
     __slots__ = (
@@ -97,11 +115,11 @@ class LhaInfo(object):
         self.CRC = None
         self.compress_size = None
         self.file_size = None
-    
+
     def __str__(self):
-        return '%s %s %08X %d %04X' % (self.filename, self.file_size, 
+        return '%s %s %08X %d %04X' % (self.filename, self.file_size,
                                        self.file_offset, self.compress_size, self.CRC)
-    
+
     def __getstate__(self):
         return (self.orig_filename, self.filename, self.directory, self.date_time,
                 self.compress_type, self.comment, self.extra, self.create_system,
@@ -119,19 +137,19 @@ class LhaInfo(object):
          self.file_size) = state
 
 
-class Lhafile:
+class LhaFile(object):
     """
     """
 
-    SUPPORTED_COMPRESS_TYPE = ('-lhd-', '-lh0-', '-lh5-', '-lh6-', '-lh7-');
+    SUPPORTED_COMPRESS_TYPE = (b'-lhd-', b'-lh0-', b'-lh5-', b'-lh6-', b'-lh7-')
 
     def __init__(self, file, mode="r", compression=None, callback=None, args=None):
         """ Open the LZH file """
         self.filelist = []
         self.NameToInfo = {}
         self.mode = key = mode.replace('b', '')[0]
-        
-        if isinstance(file, basestring):
+
+        if isinstance(file, six.string_types):
             self._fileParsed = 0
             self.filename = file
             modeDict = {'r' : 'rb'}
@@ -146,27 +164,27 @@ class Lhafile:
         self.fp.seek(0, 2)
         self.filesize = self.fp.tell()
         self.fp.seek(initial_pos, 0)
-    
+
         if key == 'r':
             self._GetContents(callback=callback,args=args)
         else:
             if not self._fileParsed:
                 self.fp.close()
                 self.fp = None
-            raise RuntimeError, 'Mode must be "r"'
+            raise RuntimeError("Mode must be 'r'")
 
     def _GetContents(self, callback=None, args=None):
         try:
             info = self._RealGetContent()
             while info:
                 if not info.compress_type in Lhafile.SUPPORTED_COMPRESS_TYPE:
-                    raise RuntimeError, "Unsupported file is contained %s" % (info.compress_type,)
+                    raise RuntimeError("Unsupported file is contained %s" % (info.compress_type,))
                 if callback:
                     callback(args, self.fp.tell(), self.filesize, info)
                 self.filelist.append(info)
                 self.NameToInfo[info.filename] = info
                 info = self._RealGetContent()
-        except BadLhafile, e:
+        except BadLhafile as e:
             raise
             if not self._fileParsed:
                 self.fp.close()
@@ -176,29 +194,29 @@ class Lhafile:
         fp = self.fp
         filesize = self.filesize
         initial_pos = fp.tell()
-        is_read = lambda x: fp.tell() + (x) < filesize
+        is_read = lambda x: fp.tell() + x < filesize
         if fp.tell() == filesize - 1:
             return None
         if not is_read(26):
-            raise BadLhafile, "Header is broken"
+            raise BadLhafile("Header is broken")
         # Check OS level
         os_level = ord(fp.read(21)[20])
         fp.seek(-21, 1)
         if not os_level in (0, 1, 2):
-            raise BadLhafile, "this file level is out of support range %d" % os_level
+            raise BadLhafile("this file level is out of support range %d" % os_level)
         if os_level in (0, 1):
             header_size, checksum, signature, skip_size, \
             file_size, modify_time, reserved , os_level, \
-            filename_length = struct.unpack('<BB5sII4sBBB', fp.read(22))
+            filename_length = unpack('<BB5sII4sBBB', fp.read(22))
             if is_read(filename_length + 2):
-                filename, crc = struct.unpack('<%dsH' % filename_length, fp.read(filename_length + 2))
+                filename, crc = unpack('<%dsH' % filename_length, fp.read(filename_length + 2))
             if os_level == 0:
                 ext_header_size = 0
                 pass
             elif os_level == 1:
                 extra_data_size = header_size - (5+4+4+2+2+1+1+1+filename_length+2+1+2)
                 os_identifier, extra_data, ext_header_size \
-                = struct.unpack('<c%dsH' % extra_data_size, fp.read(1 + extra_data_size + 2))
+                = unpack('<c%dsH' % extra_data_size, fp.read(1 + extra_data_size + 2))
             sum_ext_header_size = 0
             directory = None
             comment = None
@@ -207,47 +225,47 @@ class Lhafile:
             header = fp.read(26)
             all_header_size, signature, compress_size, file_size, \
             modify_time, reserved, os_level, crc, os_identifier, \
-            ext_header_size = struct.unpack('<H5sIIIBBHBH', header)
+            ext_header_size = unpack('<H5sIIIBBHBH', header)
             sum_ext_header_size = 0
             directory = None
             comment = None
         while ext_header_size != 0:
             sum_ext_header_size += ext_header_size
             if not is_read(ext_header_size):
-                raise BadLhafile, "File is broken"
-            (ext,) = struct.unpack('<B', fp.read(1))
+                raise BadLhafile("File is broken")
+            (ext,) = unpack('<B', fp.read(1))
             if ext == 0x00:
                 # Common header
                 dummy, ext_header_size \
-                       = struct.unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
+                       = unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
             elif ext == 0x01:
                 # Filename header
                 filename, ext_header_size \
-                          = struct.unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
+                          = unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
             elif ext == 0x02:
                 # Directory name header
                 directory, ext_header_size \
-                           = struct.unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
+                           = unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
             elif ext == 0x3F:
                 # Comment header
                 comment, ext_header_size \
-                         = struct.unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
+                         = unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
             elif ext == 0x40:
                 # Attribute Header
                 if not ext_header_size == 5:
-                    raise BadLhafile, "file is broken"
+                    raise BadLhafile("file is broken")
                 attr, ext_header_size \
-                    = struct.unpack('<HH', fp.read(4))
+                    = unpack('<HH', fp.read(4))
             else:
                 # Skip the other
                 dummy, ext_header_size \
-                       = struct.unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
+                       = unpack('<%dsH' % (ext_header_size - 3), fp.read(ext_header_size-1))
         # skip to next header
         file_offset = fp.tell()
         if os_level in (0, 1):
             compress_size = skip_size - sum_ext_header_size
         if not is_read(compress_size):
-            raise BadLhafile, "Compress data is too short"
+            raise BadLhafile("Compress data is too short")
         fp.seek(compress_size, 1)
         # modify_time
         if os_level in (0, 1):
@@ -257,6 +275,8 @@ class Lhafile:
             hour = ord(modify_time[1]) >> 3
             minute = ((ord(modify_time[1]) << 8 | ord(modify_time[0])) >> 5) & 0x2F
             second = (ord(modify_time[0]) & 0x1F) * 2
+
+            #print(os_level, year, month, day, hour, minute, second)
             try:
                 date_time = datetime.datetime(year, month, day, hour, minute, second)
             except Exception:
@@ -267,14 +287,20 @@ class Lhafile:
             date_time = dummy_date.fromtimestamp(modify_time)
             create_time = date_time
         info = LhaInfo()
+        # FIXME: hardcoding ISO-8859-1 is not very nice
+        filename = filename.decode("ISO-8859-1")
         if directory is None:
             # for lhaplus archive
-            sjisname = unicode(filename, 'cp932')
-            if '\\' in sjisname:
-                sjispath = [s.encode('cp932') for s in sjisname.split(u'\\')]
-                filename = os.sep.join(sjispath)
-                directory = os.sep.join(sjispath[:-1])
+            #sjisname = unicode(filename, 'cp932')
+            #if '\\' in sjisname:
+            #    sjispath = [s.encode('cp932') for s in sjisname.split(u'\\')]
+            #    filename = os.sep.join(sjispath)
+            #    directory = os.sep.join(sjispath[:-1])
+            pass
         else:
+            #print(repr(directory))
+            # FIXME: hardcoding ISO-8859-1 is not very nice
+            directory = directory.decode("ISO-8859-1")
             directory = os.sep.join(directory.split('\xff'))
             filename = os.path.join(directory, filename)
         info.directory = directory
@@ -290,13 +316,17 @@ class Lhafile:
         info.comment = comment
         info.compress_type = signature
         info.date_time = date_time
+
+        if "\x00" in info.filename:
+            info.filename, info.comment = info.filename.split("\x00")
+
         return info
 
     def lhaname(self):
         return self.filename
-    
+
     def namelist(self):
-        if self.filelist: 
+        if self.filelist:
             return [d.filename for d in self.filelist \
                     if d.compress_type in Lhafile.SUPPORTED_COMPRESS_TYPE]
         return None
@@ -307,34 +337,32 @@ class Lhafile:
     def read(self, name):
         """Return file bytes (as a string) for 'name'. """
         if not self.fp:
-            raise RuntimeError, \
-                  "Attempt to read LZH archive that was already closed"
+            raise RuntimeError("Attempt to read LZH archive that was already closed")
         info = self.NameToInfo[name]
         if info.compress_type in Lhafile.SUPPORTED_COMPRESS_TYPE:
             self.fp.seek(info.file_offset)
-            fin = cStringIO.StringIO(self.fp.read(info.compress_size))
-            fout = cStringIO.StringIO()
+            fin = BytesOrStringIO(self.fp.read(info.compress_size))
+            fout = BytesOrStringIO()
             try:
                 session = lzhlib.LZHDecodeSession(fin, fout, info)
-                while session.do_next() == False:
+                while not session.do_next():
                     pass
                 outsize = session.output_pos
                 crc = session.crc16
-            except Exception, e:
+            except Exception as e:
                 raise e
             if outsize != info.file_size:
-                raise BadLhafile, "%s output_size is not matched %d/%d %s" % \
-                    (name, outsize, info.file_size, info.compress_type)
+                raise BadLhafile("%s output_size is not matched %d/%d %s" % \
+                    (name, outsize, info.file_size, info.compress_type))
             if crc != info.CRC:
-                raise BadLhafile, "crc is not matched"
+                raise BadLhafile("crc is not matched")
 
             fout.seek(0)
             bytes = fout.read()
         elif info.commpress_type == '-lhd-':
-            raise RuntimeError, \
-                  "name is directory"
+            raise RuntimeError("name is directory")
         else:
-            raise RuntimeError, \
-                  "Unsupport format"
+            raise RuntimeError("Unsupport format")
         return bytes
-   
+
+Lhafile = LhaFile

@@ -31,7 +31,10 @@
 
 This is unittest code for lhafile.
 """
-import cStringIO
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
 import os
 import os.path
 import random
@@ -42,7 +45,7 @@ import lhafile
 class TestSequenceFunctions(unittest.TestCase):
     
     def make_testfile(self, chars, length, words, filesize):
-        fout = cStringIO.StringIO()
+        fout = StringIO()
         randint = random.randint
         # make random strings
         source = []
@@ -104,7 +107,7 @@ class TestSequenceFunctions(unittest.TestCase):
                 try:
                     norm_filename = os.sep.join(filename.split('/'))                    
                     data = lha.read(norm_filename)
-                except Exception, e:
+                except Exception as e:
                     self.assert_(False, "Decode error happened in %s" % (filename,))
                 if data == self.datasets[filename]:
                     continue
