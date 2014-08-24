@@ -212,11 +212,12 @@ class LhaFile(object):
                 filename, crc = unpack('<%dsH' % filename_length, fp.read(filename_length + 2))
             if os_level == 0:
                 ext_header_size = 0
+                os_identifier = None
                 pass
             elif os_level == 1:
                 extra_data_size = header_size - (5+4+4+2+2+1+1+1+filename_length+2+1+2)
                 os_identifier, extra_data, ext_header_size \
-                = unpack('<c%dsH' % extra_data_size, fp.read(1 + extra_data_size + 2))
+                = unpack('<B%dsH' % extra_data_size, fp.read(1 + extra_data_size + 2))
             sum_ext_header_size = 0
             directory = None
             comment = None
@@ -303,6 +304,28 @@ class LhaFile(object):
             directory = directory.decode("ISO-8859-1")
             directory = os.sep.join(directory.split('\xff'))
             filename = os.path.join(directory, filename)
+
+        # OSIDs based on
+        # http://homepage1.nifty.com/dangan/en/Content/Program/Java/jLHA/Notes/OSID.html
+        os_identifiers = { 0x41: 'Amiga', 0x4D: 'MS-DOS', 0x32: 'OS/2', 0x39: 'OS-9',
+                          0x4B: 'OS/68K', 0x33: 'OS/386', 0x48: 'Human68K', 0x55: 'UNIX',
+                          0x43: 'CP/M', 0x46: 'FLEX', 0x6D: 'Macintosh', 0x52: 'Runser',
+                          0x54: 'TownOS', 0x58: 'XOSK', 0x77: 'Windows95', 0x57: 'WindowsNT',
+                          0x00: 'MS-DOS', 0x4A: 'Java' }
+        create_system = os_identifiers.get(os_identifier)
+
+        # set protection bits for Amiga archives
+        if create_system == 'Amiga':
+            flag_bits_bin = bin(reserved)[2:].zfill(8)
+            flag_bits_bin_flipped = flag_bits_bin[:4] + ''.join(
+                '1' if x == '0' else '0' for x in flag_bits_bin[4:])
+            default_flags = flag_bits = 'hsparwed'
+            for flag, bit in zip(default_flags, flag_bits_bin_flipped):
+                if bit == '0':
+                    flag_bits = flag_bits.replace(flag, '-')
+        else:
+            flag_bits = None
+
         info.directory = directory
         info.filename = filename
         info.compress_size = compress_size
@@ -316,6 +339,8 @@ class LhaFile(object):
         info.comment = comment
         info.compress_type = signature
         info.date_time = date_time
+        info.create_system = create_system
+        info.flag_bits = flag_bits
 
         if "\x00" in info.filename:
             info.filename, info.comment = info.filename.split("\x00")

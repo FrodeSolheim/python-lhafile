@@ -6,3 +6,6 @@ Changes include:
 * Support file notes (as found in Amiga .lha files).
 * Support for archives with ISO-8859-1 filenames.
 * Fixed a bug causing crashes in lzhlib.
+* Support for Amiga protection bits
+* Support for archive create system
+
