@@ -41,17 +41,20 @@ import os
 import os.path
 import struct
 import sys
-import six
 import lzhlib
 
 
 crc16 = lzhlib.crc16
 
 
-if six.PY3:
+if sys.version_info[0] == 3:
+    string_types = (str,)
 
     def ord(v):
         return v
+
+else:
+    string_types = (basestring,)
 
 
 def unpack(format, data):
@@ -149,7 +152,7 @@ class LhaFile(object):
         self.NameToInfo = {}
         self.mode = key = mode.replace('b', '')[0]
 
-        if isinstance(file, six.string_types):
+        if isinstance(file, string_types):
             self._fileParsed = 0
             self.filename = file
             modeDict = {'r' : 'rb'}
