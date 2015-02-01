@@ -315,7 +315,7 @@ class LhaFile(object):
         create_system = os_identifiers.get(os_identifier)
 
         # set protection bits for Amiga archives
-        if create_system == 'Amiga':
+        if create_system == 'Amiga' or ( os_level == 0 and reserved not in (0x20, 0x80) ):
             flag_bits_bin = bin(reserved)[2:].zfill(8)
             flag_bits_bin_flipped = flag_bits_bin[:4] + ''.join(
                 '1' if x == '0' else '0' for x in flag_bits_bin[4:])
