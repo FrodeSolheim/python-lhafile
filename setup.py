@@ -20,7 +20,7 @@ lzhlib = Extension('lzhlib',
                    extra_link_args=extra_link_args,
                    define_macros=[('MAJOR_VERSION', '0'),
                                   ('MINOR_VERSION', '1')],
-                   sources=['lhafile/lzhlib.c'])
+                   sources=['lzhlib.c'])
 
 setup(name="lhafile",
       packages=['lhafile'],
