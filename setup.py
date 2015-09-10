@@ -19,12 +19,12 @@ lzhlib = Extension('lzhlib',
                    extra_compile_args=extra_compile_args,
                    extra_link_args=extra_link_args,
                    define_macros=[('MAJOR_VERSION', '0'),
-                                  ('MINOR_VERSION', '1')],
+                                  ('MINOR_VERSION', '2')],
                    sources=['lzhlib.c'])
 
 setup(name="lhafile",
       packages=['lhafile'],
-      version='0.1.0fs4',
+      version='0.2.1',
       description="LHA(.lzh) file extract interface",
       long_description="""Extract LHA(.lzh) file extension.
 Its interface is likely zipfile extension is included in regular
