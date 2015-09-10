@@ -33,7 +33,7 @@ Its interface is likey zipfile module is include in regular python environment.
 """
 from __future__ import unicode_literals
 try:
-    from cStringIO import StringIO
+    from cStringIO import BytesOrStringIO
 except ImportError:
     from io import BytesIO as BytesOrStringIO
 import datetime
