@@ -325,7 +325,6 @@ class LhaFile(object):
                                 flag_bits_bin, default_flags)])
         else:
             flag_bits = None
-            print(reserved, bin(reserved))
 
         info.directory = directory
         info.filename = filename
