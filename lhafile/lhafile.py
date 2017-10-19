@@ -309,7 +309,7 @@ class LhaFile(object):
             filename = os.path.join(directory, filename)
 
         # OSIDs based on
-        # http://homepage1.nifty.com/dangan/en/Content/Program/Java/jLHA/Notes/OSID.html
+        # http://dangan.g.dgdg.jp/en/Content/Program/Java/jLHA/Notes/Notes.html
         os_identifiers = { 0x41: 'Amiga', 0x4D: 'MS-DOS', 0x32: 'OS/2', 0x39: 'OS-9',
                           0x4B: 'OS/68K', 0x33: 'OS/386', 0x48: 'Human68K', 0x55: 'UNIX',
                           0x43: 'CP/M', 0x46: 'FLEX', 0x6D: 'Macintosh', 0x52: 'Runser',
@@ -319,15 +319,13 @@ class LhaFile(object):
 
         # set protection bits for Amiga archives
         if create_system == 'Amiga' or ( os_level == 0 and reserved not in (0x20, 0x80) ):
-            flag_bits_bin = bin(reserved)[2:].zfill(8)
-            flag_bits_bin_flipped = flag_bits_bin[:4] + ''.join(
-                '1' if x == '0' else '0' for x in flag_bits_bin[4:])
-            default_flags = flag_bits = 'hsparwed'
-            for flag, bit in zip(default_flags, flag_bits_bin_flipped):
-                if bit == '0':
-                    flag_bits = flag_bits.replace(flag, '-')
+            flag_bits_bin = bin(reserved ^ 0b00001111)[2:].zfill(8)
+            default_flags = 'hsparwed'
+            flag_bits = ''.join([ flag[1] if flag[0] == '1' else '-' for flag in zip(
+                                flag_bits_bin, default_flags)])
         else:
             flag_bits = None
+            print(reserved, bin(reserved))
 
         info.directory = directory
         info.filename = filename
