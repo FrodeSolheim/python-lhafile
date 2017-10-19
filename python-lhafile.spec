@@ -32,7 +32,7 @@ env CFLAGS="$RPM_OPT_FLAGS" python setup.py build
 python setup.py install -O1 \
 --prefix=%{_prefix} \
 --root=$RPM_BUILD_ROOT
-%fdupes %{python_sitearch}
+%fdupes %{buildroot}/%{_prefix}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
