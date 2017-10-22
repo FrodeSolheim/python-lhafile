@@ -309,13 +309,13 @@ class LhaFile(object):
             filename = os.path.join(directory, filename)
 
         # OSIDs based on
-        # http://dangan.g.dgdg.jp/en/Content/Program/Java/jLHA/Notes/Notes.html
+        # http://dangan.g.dgdg.jp/en/Content/Program/Java/jLHA/Notes/OSID.html
         os_identifiers = { 0x41: 'Amiga', 0x4D: 'MS-DOS', 0x32: 'OS/2', 0x39: 'OS-9',
                           0x4B: 'OS/68K', 0x33: 'OS/386', 0x48: 'Human68K', 0x55: 'UNIX',
                           0x43: 'CP/M', 0x46: 'FLEX', 0x6D: 'Macintosh', 0x52: 'Runser',
                           0x54: 'TownOS', 0x58: 'XOSK', 0x77: 'Windows95', 0x57: 'WindowsNT',
-                          0x00: 'MS-DOS', 0x4A: 'Java' }
-        create_system = os_identifiers.get(os_identifier)
+                          0x00: 'generic/MS-DOS', 0x4A: 'Java' }
+        create_system = os_identifiers.get(os_identifier, '')
 
         # set protection bits for Amiga archives
         if create_system == 'Amiga' or ( os_level == 0 and reserved not in (0x20, 0x80) ):
