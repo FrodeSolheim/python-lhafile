@@ -6,3 +6,9 @@ Changes include:
 * Support file notes (as found in Amiga .lha files).
 * Support for archives with ISO-8859-1 filenames.
 * Fixed a bug causing crashes in lzhlib.
+
+I've also updated setup.py and replaced the author information there.
+This is not done to remove any credit, but to avoid people bugging the
+original author if there is a problem with my modifications.
+
+README.txt is the original upstream README.
