@@ -1200,7 +1200,7 @@ static PyMemberDef LZHDecodeSession_members[] = {
     {"input_pos",        T_LONGLONG, offsetof(LZHDecodeSessionObject, _in) + offsetof(bit_stream_reader, pos), READONLY},
     {"output_file_size", T_LONGLONG, offsetof(LZHDecodeSessionObject, info_file_size), READONLY},
     {"output_pos",       T_LONGLONG, offsetof(LZHDecodeSessionObject, _out) + offsetof(bit_stream_writer, pos), READONLY},
-    {"crc16",            T_LONG,     offsetof(LZHDecodeSessionObject, _out) + offsetof(bit_stream_writer, crc16), READONLY},
+    {"crc16",            T_INT,      offsetof(LZHDecodeSessionObject, _out) + offsetof(bit_stream_writer, crc16), READONLY},
     {NULL}
 };
 
