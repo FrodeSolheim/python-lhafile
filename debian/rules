@@ -14,7 +14,7 @@ PYTHON3 := $(filter-out $(PY3DEFAULT),$(PY3REQUESTED)) python3
 
 %:
 	# Adding the required helpers
-	dh $@ --with python2,python3
+	dh $@ --with python3
 
 override_dh_auto_clean:
 	dh_auto_clean
@@ -33,8 +33,3 @@ override_dh_auto_install:
 		$$python setup.py install --install-layout=deb --root=debian/tmp; \
 	done
 	dh_auto_install
-
-#export PYBUILD_NAME=lhafile
-#
-#%:
-#	dh $@ --with python2,python3 --buildsystem=pybuild
