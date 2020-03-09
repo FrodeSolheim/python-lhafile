@@ -1,10 +1,11 @@
+*~
 /build/
 /dist/
-/.svn/
-*~
-*.pyc
-python-lhafile-*
-python-lhafile_*
 lhafile-*
 lhafile_*
 MANIFEST
+/.pybuild/
+*.pyc
+python-lhafile-*
+python-lhafile_*
+/.svn/
