@@ -5,6 +5,7 @@ lhafile-*
 lhafile_*
 MANIFEST
 /.pybuild/
+*.egg-info
 *.pyc
 python-lhafile-*
 python-lhafile_*

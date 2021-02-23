@@ -6,7 +6,7 @@
 # This software is released under the terms of the BSD license.
 # For more information see the COPYING.txt file in this directory.
 
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 import sys
 import platform
 
