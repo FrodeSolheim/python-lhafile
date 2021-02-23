@@ -27,7 +27,7 @@ lzhlib = Extension(
 setup(
     name="lhafile",
     packages=["lhafile"],
-    version="0.2.4",
+    version="0.2.5",
     description="LHA archive support for Python",
     long_description="""\
 A python package that handles .lha archives, with an interface similar to the
