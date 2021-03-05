@@ -277,7 +277,7 @@ class LhaFile(object):
             month = ((ord(modify_time[3]) << 8 | ord(modify_time[2])) >> 5) & 0x0F
             day  = ord(modify_time[2]) & 0x1F
             hour = ord(modify_time[1]) >> 3
-            minute = ((ord(modify_time[1]) << 8 | ord(modify_time[0])) >> 5) & 0x2F
+            minute = ((ord(modify_time[1]) << 8 | ord(modify_time[0])) >> 5) & 0x3F
             second = (ord(modify_time[0]) & 0x1F) * 2
 
             #print(os_level, year, month, day, hour, minute, second)
