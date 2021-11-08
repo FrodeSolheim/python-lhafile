@@ -1,5 +1,5 @@
-python-lhafile (9.8.7dummy-0) unstable; urgency=low
+python-lhafile (0.3.0-0) unstable; urgency=low
 
   * Dummy changelog entry
 
- -- Frode Solheim <fs-uae@fengestad.no>  Mon, 15 Dec 2014 21:18:01 +0100
+ -- Frode Solheim <frode@solheim.dev>  Mon, 15 Dec 2014 21:18:01 +0100

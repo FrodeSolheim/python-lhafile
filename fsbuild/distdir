@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+
+. ./PACKAGE.FS
+
+DISTDIR=python-lhafile-$PACKAGE_VERSION
+
+rm -Rf $DISTDIR
+
+mkdir $DISTDIR
+mkdir $DISTDIR/debian
+mkdir $DISTDIR/debian/source
+mkdir $DISTDIR/lhafile
+mkdir $DISTDIR/lhafile/tests
+
+cp COPYING.txt $DISTDIR
+cp debian/changelog $DISTDIR/debian
+cp debian/compat $DISTDIR/debian
+cp debian/source/format $DISTDIR/debian/source
+cp debian/rules $DISTDIR/debian
+cp debian/copyright $DISTDIR/debian
+cp debian/control $DISTDIR/debian
+cp MANIFEST.in $DISTDIR
+cp README.md $DISTDIR
+cp python-lhafile.spec $DISTDIR
+cp setup.py $DISTDIR
+cp lzhlib.c $DISTDIR
+cp lhafile/lhafile.py $DISTDIR/lhafile
+cp lhafile/tests/archive_lhaca.lzh $DISTDIR/lhafile/tests
+cp lhafile/tests/test_lhafile.py $DISTDIR/lhafile/tests
+cp lhafile/tests/archive_lhaunix_lh5.lzh $DISTDIR/lhafile/tests
+cp lhafile/tests/archive_lhaunix_lh7.lzh $DISTDIR/lhafile/tests
+cp lhafile/tests/archive_lhaunix_lh6.lzh $DISTDIR/lhafile/tests
+cp lhafile/tests/archive_lhaplus.lzh $DISTDIR/lhafile/tests
+cp lhafile/__init__.py $DISTDIR/lhafile

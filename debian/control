@@ -5,12 +5,14 @@ X-Python-Version: >= 2.7
 X-Python3-Version: >= 3.2
 Maintainer: Frode Solheim <frode@solheim.dev>
 Build-Depends:
- debhelper-compat (= 12),
+ debhelper (>= 10~),
  dh-python,
- python-all-dev (>=2.7),
- python3-all-dev (>= 3.1.2-7~)
+ python-all-dev (>= 2.7),
+ python-setuptools,
+ python3-all-dev (>= 3.1.2-7~),
+ python3-setuptools
 Standards-Version: 3.8.4
-Homepage: http://fengestad.no/python-lhafile
+Homepage: https://solheim.dev/python-lhafile
 
 Package: python-lhafile
 Architecture: any

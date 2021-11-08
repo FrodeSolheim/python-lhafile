@@ -1,1 +1,2 @@
+PACKAGE_NAME=python-lhafile
 PACKAGE_VERSION=0.3.0

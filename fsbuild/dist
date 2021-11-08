@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+. ./PACKAGE.FS
+
+fsbuild/distdir
+tar \
+	cfJv \
+	python-lhafile-$PACKAGE_VERSION.tar.xz \
+	python-lhafile-$PACKAGE_VERSION

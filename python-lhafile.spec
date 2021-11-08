@@ -1,6 +1,6 @@
 %define name python-lhafile
-%define version 0.2.2
-%define unmangled_version 0.2.2
+%define version 0.3.0
+%define unmangled_version 0.3.0
 %define release 1
 
 Summary: LHA archive support for Python
@@ -8,13 +8,15 @@ Group: Development/Libraries
 Name: %{name}
 Version: %{version}
 Release: %{release}%{?dist}
-Source0: %{name}-%{unmangled_version}.tar.gz
+Source0: %{name}-%{unmangled_version}.tar.xz
 License: BSD-3-Clause
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix: %{_prefix}
 Vendor: Frode Solheim <frode@solheim.dev>
 Url: https://github.com/FrodeSolheim/python-lhafile
-BuildRequires: python3-devel fdupes
+BuildRequires: fdupes
+BuildRequires: python3-devel
+BuildRequires: python3-setuptools
 
 %description
 This project is an updated version of the project found at
