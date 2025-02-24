@@ -1,27 +1,15 @@
 Source: python-lhafile
 Section: libs
 Priority: extra
-X-Python-Version: >= 2.7
 X-Python3-Version: >= 3.2
 Maintainer: Frode Solheim <frode@solheim.dev>
 Build-Depends:
  debhelper (>= 10~),
  dh-python,
- python-all-dev (>= 2.7),
- python-setuptools,
  python3-all-dev (>= 3.1.2-7~),
  python3-setuptools
 Standards-Version: 3.8.4
 Homepage: https://solheim.dev/python-lhafile
-
-Package: python-lhafile
-Architecture: any
-Depends:
- ${python:Depends},
- ${shlibs:Depends},
- ${misc:Depends}
-Provides: ${python:Provides}
-Description: LHA archive support for Python 2
 
 Package: python3-lhafile
 Architecture: any

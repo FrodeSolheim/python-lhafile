@@ -1,6 +1,6 @@
 %define name python-lhafile
-%define version 0.3.0
-%define unmangled_version 0.3.0
+%define version 0.3.1
+%define unmangled_version 0.3.1
 %define release 1
 
 Summary: LHA archive support for Python
